@@ -479,15 +479,16 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          cache: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Dependencies & Build Frontend
         run: |
-          npm ci || npm install
+          npm install
           npm run build
           npm install -g @neutralinojs/neu
 
