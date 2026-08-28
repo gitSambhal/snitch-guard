@@ -32,8 +32,9 @@ echo "  -> Created: bin/snitchguard-daemon"
 
 # 4. Package with Neutralino CLI
 echo "[4/4] Packaging unified desktop binaries with Neutralinojs..."
-mkdir -p dist/js
+mkdir -p dist/js dist/icons
 cp public/js/neutralino.js dist/js/neutralino.js 2>/dev/null || true
+cp public/icons/appIcon.png dist/icons/appIcon.png 2>/dev/null || true
 
 if command -v neu >/dev/null 2>&1; then
     neu update || true
