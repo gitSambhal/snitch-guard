@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="Suhail Akhtar (suhail.top)">
+  <title>SnitchGuard - Host Application Firewall</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Custom Neutralino Window Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-drag">
+      <span style="font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">SNITCHGUARD</span>
+      <span class="app-badge">DAEMON V1.0.0</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="window-btn" id="btn-minimize" title="Minimize to Tray">&#8211;</button>
+      <button class="window-btn" id="btn-maximize" title="Maximize">&#9633;</button>
+      <button class="window-btn close" id="btn-close" title="Close">&#10005;</button>
+    </div>
+  </div>
+
+  <!-- App Header & Navigation -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-group">
+        <div class="logo-icon">&#128737;</div>
+        <div>
+          <h1 style="font-size: 15px; font-weight: 700; color: #fff;">SnitchGuard Firewall</h1>
+          <p style="font-size: 11px; color: #64748b;">Cross-Platform Host Application Filter</p>
+        </div>
+      </div>
+      <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="traffic">Live Traffic</button>
+        <button class="tab-btn" data-tab="rules">Rules Manager</button>
+        <button class="tab-btn" data-tab="simulator">Traffic Simulator</button>
+        <button class="tab-btn" data-tab="diagnostics">Kernel Drivers</button>
+      </nav>
+    </div>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div class="status-indicator" id="daemon-status">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Daemon Connected (ws://127.0.0.1:9095)</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Views Container -->
+  <main class="main-container">
+    <!-- View 1: Active Traffic Monitor -->
+    <section id="view-traffic" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>&#128225;</span> Active Process Outbound Connections
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="traffic-search" placeholder="Filter process or domain..." style="background: #090d16; border: 1px solid #334155; color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 12px; width: 220px;">
+            <button class="btn btn-secondary" id="btn-clear-traffic" style="padding: 6px 12px; font-size: 12px;">Clear History</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>TIME</th>
+                <th>PROCESS & PID</th>
+                <th>DESTINATION DOMAIN</th>
+                <th>REMOTE IP:PORT</th>
+                <th>PROTO</th>
+                <th>BYTES (TX/RX)</th>
+                <th>STATE</th>
+                <th>ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="traffic-table-body">
+              <!-- Dynamically populated via WebSocket events -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- View 2: Rules Manager -->
+    <section id="view-rules" class="tab-content" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>&#128203;</span> Firewall Filtering Rules (<span id="rule-count">0</span> Active)
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="rule-search" placeholder="Search rules..." style="background: #090d16; border: 1px solid #334155; color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 12px;">
+            <button class="btn btn-primary" id="btn-add-rule-modal" style="padding: 6px 14px; font-size: 12px;">+ Add Rule</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>ACTION</th>
+                <th>PROCESS PATH</th>
+                <th>DOMAIN PATTERN</th>
+                <th>REMOTE IP</th>
+                <th>PORT</th>
+                <th>DURATION</th>
+                <th>HITS</th>
+                <th>OPERATIONS</th>
+              </tr>
+            </thead>
+            <tbody id="rules-table-body">
+              <!-- Dynamically populated from Go daemon -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- View 3: Traffic Simulator -->
+    <section id="view-simulator" class="tab-content" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>&#127918;</span> Packet Injection & Alert Trigger Test Bench
+          </div>
+        </div>
+        <div style="padding: 20px;">
+          <p style="font-size: 13px; color: #94a3b8; margin-bottom: 16px;">
+            Trigger mock outgoing connections from various binaries to test the elevated Go daemon's rule matching and interactive alert popups.
+          </p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
+            <button class="btn btn-secondary" onclick="simulateTraffic('curl', 'api.github.com', '140.82.121.4', 443, 'tls')">
+              &#128279; curl &rarr; api.github.com
+            </button>
+            <button class="btn btn-secondary" onclick="simulateTraffic('Spotify', 'audio-fa.spotify.com', '35.186.224.25', 443, 'tls')">
+              &#127925; Spotify &rarr; audio-fa.spotify.com
+            </button>
+            <button class="btn btn-secondary" onclick="simulateTraffic('Code', 'telemetry.visualstudio.com', '20.54.89.10', 443, 'tls')">
+              &#128187; VS Code &rarr; telemetry.visualstudio.com
+            </button>
+            <button class="btn btn-secondary" onclick="simulateTraffic('Python3', 'c2-beacon.darknet.onion', '198.51.100.77', 8443, 'tcp')">
+              &#9888; Python &rarr; c2-beacon.darknet.onion (Suspicious)
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- View 4: Driver Diagnostics -->
+    <section id="view-diagnostics" class="tab-content" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>&#9881;</span> Native Kernel Hook & Driver Architecture
+          </div>
+        </div>
+        <div style="padding: 20px; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+          <h3 style="color: #38bdf8; margin-bottom: 8px;">Cross-Platform Interception Hooks:</h3>
+          <ul style="margin-left: 20px; margin-bottom: 16px;">
+            <li><strong>Linux:</strong> eBPF <code>sock_ops</code> / <code>cgroup_skb</code> or iptables NFQUEUE hook into daemon.</li>
+            <li><strong>macOS:</strong> NetworkExtension <code>NEFilterDataProvider</code> with <code>NEFilterSocketFlow</code>.</li>
+            <li><strong>Windows:</strong> Windows Filtering Platform (WFP) callout at <code>FWPM_LAYER_ALE_AUTH_CONNECT_V4</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Interactive Connection Alert Window (Pop-up Triggered via WebSocket) -->
+  <div class="modal-backdrop" id="alert-modal">
+    <div class="alert-dialog">
+      <div class="alert-header">
+        <div class="alert-icon">&#128680;</div>
+        <div>
+          <h2 style="font-size: 15px; font-weight: 700; color: #fff;">Connection Alert</h2>
+          <p style="font-size: 11px; color: #93c5fd;">Unruled outgoing connection detected</p>
+        </div>
+      </div>
+      <div class="alert-body">
+        <p style="font-size: 13px; color: #e2e8f0; margin-bottom: 10px;">
+          The application <strong id="alert-proc-name" style="color: #38bdf8;">curl</strong> is attempting to establish an outbound connection:
+        </p>
+
+        <div class="connection-meta">
+          <div class="meta-item">
+            <label>Binary Path</label>
+            <span id="alert-proc-path">/usr/bin/curl</span>
+          </div>
+          <div class="meta-item">
+            <label>Process ID (PID)</label>
+            <span id="alert-proc-pid">50234</span>
+          </div>
+          <div class="meta-item">
+            <label>Target Domain (SNI)</label>
+            <span id="alert-domain" style="color: #34d399;">telemetry.dropbox.com</span>
+          </div>
+          <div class="meta-item">
+            <label>Destination IP : Port</label>
+            <span id="alert-target">162.125.6.20:443 (TLS)</span>
+          </div>
+        </div>
+
+        <div style="margin: 12px 0; font-size: 12px; display: flex; align-items: center; gap: 8px; color: #94a3b8;">
+          <input type="checkbox" id="chk-wildcard" checked style="cursor: pointer;">
+          <label for="chk-wildcard" style="cursor: pointer;">Apply rule to all subdomains (<code>*.<span id="wildcard-preview">domain.com</span></code>)</label>
+        </div>
+
+        <!-- Decision Buttons -->
+        <div class="alert-actions">
+          <button class="btn btn-secondary" id="btn-allow-once">Allow Once</button>
+          <button class="btn btn-success" id="btn-allow-always">Allow Always</button>
+          <button class="btn btn-secondary" id="btn-deny-once">Deny Once</button>
+          <button class="btn btn-danger" id="btn-deny-always">Deny Always</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer with Attribution -->
+  <footer>
+    <div>
+      Created by <a href="https://suhail.top" target="_blank" rel="noopener noreferrer">Suhail Akhtar</a>
+    </div>
+    <div>
+      <span class="app-badge" style="font-size: 10px;">IPC: ws://127.0.0.1:9095</span>
+    </div>
+  </footer>
+
+  <!-- Neutralino Client API Script & Application Logic -->
+  <script src="js/neutralino.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

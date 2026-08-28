@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
+  "applicationId": "top.suhail.snitchguard",
+  "version": "1.0.0",
+  "defaultMode": "window",
+  "port": 0,
+  "documentRoot": "/dist/",
+  "url": "/",
+  "enableServer": true,
+  "enableNativeAPI": true,
+  "exportAuthInfo": true,
+  "logging": {
+    "enabled": true,
+    "writeToLogFile": true
+  },
+  "nativeBlockList": [],
+  "nativeAllowList": [
+    "app.*",
+    "os.*",
+    "window.*",
+    "events.*",
+    "filesystem.*",
+    "storage.*",
+    "computer.*",
+    "extensions.*"
+  ],
+  "modes": {
+    "window": {
+      "title": "SnitchGuard - Host Application Firewall",
+      "width": 1240,
+      "height": 820,
+      "minWidth": 960,
+      "minHeight": 640,
+      "center": true,
+      "fullScreen": false,
+      "alwaysOnTop": false,
+      "icon": "/dist/icons/appIcon.png",
+      "enableInspector": false,
+      "borderless": false,
+      "maximize": false,
+      "hidden": false,
+      "resizable": true,
+      "exitProcessOnClose": true
+    }
+  },
+  "cli": {
+    "binaryName": "snitchguard",
+    "resourcesPath": "/dist/",
+    "clientLibrary": "/dist/js/neutralino.js",
+    "distributionPath": "/bin"
+  }
+}

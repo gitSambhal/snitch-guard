@@ -1,0 +1,6 @@
+{
+  "name": "SnitchGuard - Cross-Platform Host Application Firewall",
+  "description": "Functional cross-platform host-based application firewall prototype (Little Snitch clone) featuring an elevated Go daemon with SNI extraction and socket resolver, alongside a Neutralinojs desktop client with real-time alert popups and rule management.",
+  "requestFramePermissions": ["notifications"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,225 @@
+name: Build & Release Multi-Platform Binaries
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-release:
+    name: Build Multi-Platform Native Package & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          check-latest: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Frontend Dependencies
+        run: npm ci || npm install
+
+      - name: Build React Frontend
+        run: npm run build
+
+      - name: Install Neutralinojs CLI
+        run: npm install -g @neutralinojs/neu
+
+      - name: Build Multi-Platform Elevated Go Daemon
+        run: |
+          mkdir -p bin/daemons
+          cd daemon
+
+          echo "==> Compiling Go daemon for Linux (AMD64)..."
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../bin/daemons/snitchguard-daemon-linux-amd64 .
+
+          echo "==> Compiling Go daemon for Linux (ARM64)..."
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o ../bin/daemons/snitchguard-daemon-linux-arm64 .
+
+          echo "==> Compiling Go daemon for macOS (Intel AMD64)..."
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o ../bin/daemons/snitchguard-daemon-darwin-amd64 .
+
+          echo "==> Compiling Go daemon for macOS (Apple Silicon ARM64)..."
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o ../bin/daemons/snitchguard-daemon-darwin-arm64 .
+
+          echo "==> Compiling Go daemon for Windows (AMD64)..."
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o ../bin/daemons/snitchguard-daemon-windows-amd64.exe .
+
+          cd ..
+          chmod +x bin/daemons/* || true
+          ls -la bin/daemons/
+
+      - name: Build Neutralino Desktop Binaries
+        run: |
+          neu build --release
+          ls -la bin/
+
+      - name: Package Multi-Platform Release Archives
+        run: |
+          mkdir -p release-artifacts
+          
+          # Linux x64
+          mkdir -p pkg-linux-x64/bin
+          cp bin/snitchguard/snitchguard-linux_x64 pkg-linux-x64/ 2>/dev/null || cp bin/snitchguard-linux_x64 pkg-linux-x64/ 2>/dev/null || true
+          cp bin/snitchguard/resources.neu pkg-linux-x64/ 2>/dev/null || cp bin/resources.neu pkg-linux-x64/ 2>/dev/null || true
+          cp bin/daemons/snitchguard-daemon-linux-amd64 pkg-linux-x64/bin/snitchguard-daemon
+          cp firewall_rules.json pkg-linux-x64/ 2>/dev/null || echo "[]" > pkg-linux-x64/firewall_rules.json
+          cat << 'EOF' > pkg-linux-x64/run.sh
+          #!/usr/bin/env bash
+          DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+          echo "==> Starting SnitchGuard Firewall Daemon..."
+          sudo "$DIR/bin/snitchguard-daemon" --ws-port=9095 --proxy-port=9096 --rules="$DIR/firewall_rules.json" &
+          DAEMON_PID=$!
+          sleep 0.3
+          "$DIR/snitchguard-linux_x64"
+          kill $DAEMON_PID 2>/dev/null || true
+          EOF
+          chmod +x pkg-linux-x64/run.sh pkg-linux-x64/bin/snitchguard-daemon pkg-linux-x64/snitchguard-linux_x64 2>/dev/null || true
+          tar -czvf release-artifacts/snitchguard-linux-x64.tar.gz -C pkg-linux-x64 .
+
+          # Linux ARM64
+          mkdir -p pkg-linux-arm64/bin
+          cp bin/snitchguard/snitchguard-linux_arm64 pkg-linux-arm64/ 2>/dev/null || cp bin/snitchguard-linux_arm64 pkg-linux-arm64/ 2>/dev/null || true
+          cp bin/snitchguard/resources.neu pkg-linux-arm64/ 2>/dev/null || cp bin/resources.neu pkg-linux-arm64/ 2>/dev/null || true
+          cp bin/daemons/snitchguard-daemon-linux-arm64 pkg-linux-arm64/bin/snitchguard-daemon
+          cp firewall_rules.json pkg-linux-arm64/ 2>/dev/null || echo "[]" > pkg-linux-arm64/firewall_rules.json
+          cat << 'EOF' > pkg-linux-arm64/run.sh
+          #!/usr/bin/env bash
+          DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+          echo "==> Starting SnitchGuard Firewall Daemon..."
+          sudo "$DIR/bin/snitchguard-daemon" --ws-port=9095 --proxy-port=9096 --rules="$DIR/firewall_rules.json" &
+          DAEMON_PID=$!
+          sleep 0.3
+          "$DIR/snitchguard-linux_arm64"
+          kill $DAEMON_PID 2>/dev/null || true
+          EOF
+          chmod +x pkg-linux-arm64/run.sh pkg-linux-arm64/bin/snitchguard-daemon pkg-linux-arm64/snitchguard-linux_arm64 2>/dev/null || true
+          tar -czvf release-artifacts/snitchguard-linux-arm64.tar.gz -C pkg-linux-arm64 .
+
+          # macOS Intel (x64)
+          mkdir -p pkg-mac-x64/bin
+          cp bin/snitchguard/snitchguard-mac_x64 pkg-mac-x64/ 2>/dev/null || cp bin/snitchguard-mac_x64 pkg-mac-x64/ 2>/dev/null || true
+          cp bin/snitchguard/resources.neu pkg-mac-x64/ 2>/dev/null || cp bin/resources.neu pkg-mac-x64/ 2>/dev/null || true
+          cp bin/daemons/snitchguard-daemon-darwin-amd64 pkg-mac-x64/bin/snitchguard-daemon
+          cp firewall_rules.json pkg-mac-x64/ 2>/dev/null || echo "[]" > pkg-mac-x64/firewall_rules.json
+          cat << 'EOF' > pkg-mac-x64/run.sh
+          #!/usr/bin/env bash
+          DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+          echo "==> Starting SnitchGuard Firewall Daemon..."
+          sudo "$DIR/bin/snitchguard-daemon" --ws-port=9095 --proxy-port=9096 --rules="$DIR/firewall_rules.json" &
+          DAEMON_PID=$!
+          sleep 0.3
+          "$DIR/snitchguard-mac_x64"
+          kill $DAEMON_PID 2>/dev/null || true
+          EOF
+          chmod +x pkg-mac-x64/run.sh pkg-mac-x64/bin/snitchguard-daemon pkg-mac-x64/snitchguard-mac_x64 2>/dev/null || true
+          tar -czvf release-artifacts/snitchguard-mac-x64.tar.gz -C pkg-mac-x64 .
+
+          # macOS Apple Silicon (ARM64)
+          mkdir -p pkg-mac-arm64/bin
+          cp bin/snitchguard/snitchguard-mac_arm64 pkg-mac-arm64/ 2>/dev/null || cp bin/snitchguard-mac_arm64 pkg-mac-arm64/ 2>/dev/null || true
+          cp bin/snitchguard/resources.neu pkg-mac-arm64/ 2>/dev/null || cp bin/resources.neu pkg-mac-arm64/ 2>/dev/null || true
+          cp bin/daemons/snitchguard-daemon-darwin-arm64 pkg-mac-arm64/bin/snitchguard-daemon
+          cp firewall_rules.json pkg-mac-arm64/ 2>/dev/null || echo "[]" > pkg-mac-arm64/firewall_rules.json
+          cat << 'EOF' > pkg-mac-arm64/run.sh
+          #!/usr/bin/env bash
+          DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+          echo "==> Starting SnitchGuard Firewall Daemon..."
+          sudo "$DIR/bin/snitchguard-daemon" --ws-port=9095 --proxy-port=9096 --rules="$DIR/firewall_rules.json" &
+          DAEMON_PID=$!
+          sleep 0.3
+          "$DIR/snitchguard-mac_arm64"
+          kill $DAEMON_PID 2>/dev/null || true
+          EOF
+          chmod +x pkg-mac-arm64/run.sh pkg-mac-arm64/bin/snitchguard-daemon pkg-mac-arm64/snitchguard-mac_arm64 2>/dev/null || true
+          tar -czvf release-artifacts/snitchguard-mac-arm64.tar.gz -C pkg-mac-arm64 .
+
+          # Windows x64
+          mkdir -p pkg-win-x64/bin
+          cp bin/snitchguard/snitchguard-win_x64.exe pkg-win-x64/ 2>/dev/null || cp bin/snitchguard-win_x64.exe pkg-win-x64/ 2>/dev/null || true
+          cp bin/snitchguard/resources.neu pkg-win-x64/ 2>/dev/null || cp bin/resources.neu pkg-win-x64/ 2>/dev/null || true
+          cp bin/daemons/snitchguard-daemon-windows-amd64.exe pkg-win-x64/bin/snitchguard-daemon.exe
+          cp firewall_rules.json pkg-win-x64/ 2>/dev/null || echo "[]" > pkg-win-x64/firewall_rules.json
+          cat << 'EOF' > pkg-win-x64/run.bat
+          @echo off
+          echo Starting SnitchGuard Firewall Daemon...
+          start "" "%~dp0bin\snitchguard-daemon.exe" --ws-port=9095 --proxy-port=9096 --rules="%~dp0firewall_rules.json"
+          timeout /t 1 /nobreak >nul
+          start "" "%~dp0snitchguard-win_x64.exe"
+          EOF
+          zip -r release-artifacts/snitchguard-windows-x64.zip pkg-win-x64/
+
+          # Compute SHA-256 Checksums
+          cd release-artifacts
+          sha256sum * > SHA256SUMS.txt
+          cd ..
+          ls -la release-artifacts/
+
+      - name: Determine Release Tag & Name
+        id: release_info
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          else
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            DATE_STR=$(date +'%Y.%m.%d')
+            TAG_NAME="v1.0.0-${DATE_STR}-${SHORT_SHA}"
+          fi
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "RELEASE_TITLE=SnitchGuard ${TAG_NAME} - Automated Multi-Platform Release" >> $GITHUB_OUTPUT
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.TAG_NAME }}
+          name: ${{ steps.release_info.outputs.RELEASE_TITLE }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ### 🛡️ SnitchGuard Multi-Platform Binary Release
+            **Author:** Suhail Akhtar ([https://suhail.top](https://suhail.top))
+
+            Automated cross-platform production release containing the unified Neutralinojs desktop client and the elevated Go firewall daemon.
+
+            #### 📦 Download Packages
+            - **Linux x86_64:** `snitchguard-linux-x64.tar.gz`
+            - **Linux ARM64:** `snitchguard-linux-arm64.tar.gz`
+            - **macOS Intel (x86_64):** `snitchguard-mac-x64.tar.gz`
+            - **macOS Apple Silicon (M1/M2/M3/M4 ARM64):** `snitchguard-mac-arm64.tar.gz`
+            - **Windows x86_64:** `snitchguard-windows-x64.zip`
+            - **Checksums:** `SHA256SUMS.txt`
+
+            #### 🚀 Quick Start
+            1. Extract the downloaded package for your OS.
+            2. Run `./run.sh` (or `run.bat` on Windows).
+            3. The application will start the elevated firewall daemon and launch the live traffic inspection dashboard.
+          files: |
+            release-artifacts/snitchguard-linux-x64.tar.gz
+            release-artifacts/snitchguard-linux-arm64.tar.gz
+            release-artifacts/snitchguard-mac-x64.tar.gz
+            release-artifacts/snitchguard-mac-arm64.tar.gz
+            release-artifacts/snitchguard-windows-x64.zip
+            release-artifacts/SHA256SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
