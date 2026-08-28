@@ -267,6 +267,31 @@ func (pr *ProcessResolver) Resolve(localAddr, remoteAddr, protocol string) *Proc
 		return &ProcessInfo{PID: 1042, Name: "curl", Path: "/usr/bin/curl"}
 	}
 }`
+        },
+        {
+          id: 'daemon-go-mod',
+          name: 'go.mod',
+          type: 'file',
+          path: '/daemon/go.mod',
+          language: 'go',
+          content: `module github.com/suhailakhtar/snitchguard-daemon
+
+go 1.22
+
+require github.com/gorilla/websocket v1.5.1
+
+require golang.org/x/net v0.24.0 // indirect`
+        },
+        {
+          id: 'daemon-go-sum',
+          name: 'go.sum',
+          type: 'file',
+          path: '/daemon/go.sum',
+          language: 'go',
+          content: `github.com/gorilla/websocket v1.5.1 h1:WeTe88PgnxEtdgkcpTqmqa9acKsptbvFsLhYvlkm2CE=
+github.com/gorilla/websocket v1.5.1/go.mod h1:x8No5VoVbmpZmhzPa6lQX6i8Dtub52pdPu4BV4VBPm0=
+golang.org/x/net v0.24.0 h1:zTwSQe2ETsNlQrWC0BiO3k/ZKDffpU1o6uH58498v5k=
+golang.org/x/net v0.24.0/go.mod h1:1XjUBZ3U/eV3FSy1Og/vE5mzpwbOqXzJ/b9GzlbHmwM=`
         }
       ]
     },

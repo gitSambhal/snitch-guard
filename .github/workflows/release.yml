@@ -50,6 +50,10 @@ jobs:
           mkdir -p bin/daemons
           cd daemon
 
+          echo "==> Resolving Go dependencies..."
+          go mod tidy
+          go mod download
+
           echo "==> Compiling Go daemon for Linux (AMD64)..."
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../bin/daemons/snitchguard-daemon-linux-amd64 .
 
