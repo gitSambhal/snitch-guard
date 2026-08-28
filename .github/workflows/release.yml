@@ -51,6 +51,7 @@ jobs:
           cd daemon
 
           echo "==> Resolving Go dependencies..."
+          rm -f go.sum
           go mod tidy
           go mod download
 
