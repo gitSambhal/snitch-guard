@@ -47,6 +47,8 @@
     "binaryName": "snitchguard",
     "resourcesPath": "/dist/",
     "clientLibrary": "/dist/js/neutralino.js",
+    "binaryVersion": "5.4.0",
+    "clientVersion": "5.4.0",
     "distributionPath": "/bin"
   }
 }

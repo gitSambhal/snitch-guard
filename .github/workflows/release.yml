@@ -76,6 +76,11 @@ jobs:
 
       - name: Build Neutralino Desktop Binaries
         run: |
+          mkdir -p dist/js
+          cp public/js/neutralino.js dist/js/neutralino.js 2>/dev/null || true
+          echo "==> Running neu update to download official Neutralino engine binaries..."
+          neu update
+          echo "==> Running neu build to bundle resources..."
           neu build --release
           ls -la bin/
 

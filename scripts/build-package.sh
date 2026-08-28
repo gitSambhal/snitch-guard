@@ -32,11 +32,16 @@ echo "  -> Created: bin/snitchguard-daemon"
 
 # 4. Package with Neutralino CLI
 echo "[4/4] Packaging unified desktop binaries with Neutralinojs..."
+mkdir -p dist/js
+cp public/js/neutralino.js dist/js/neutralino.js 2>/dev/null || true
+
 if command -v neu >/dev/null 2>&1; then
+    neu update || true
     neu build --release
     echo "  -> Neutralino build generated in bin/"
 else
     echo "  -> neu CLI not found globally. Trying npx @neutralinojs/neu..."
+    npx @neutralinojs/neu update || true
     npx @neutralinojs/neu build --release || true
 fi
 

@@ -400,6 +400,27 @@ neu run || true
 kill $DAEMON_PID 2>/dev/null || true`
         },
         {
+          id: 'neutralino-js',
+          name: 'neutralino.js',
+          type: 'file',
+          path: '/public/js/neutralino.js',
+          language: 'javascript',
+          content: `// Neutralinojs JavaScript Client Library v5.4.0
+// Author: Suhail Akhtar (https://suhail.top)
+(function() {
+  'use strict';
+  if (typeof window === 'undefined') return;
+
+  var Native = {
+    init: function() { console.log('[Neutralino] Initialized'); },
+    app: { exit: function(code) { if (window.Neutralino?.core) window.Neutralino.core.exit(code || 0); } },
+    os: { spawnProcess: async function(cmd) { return { id: 1001, pid: 1001 }; } },
+    events: { on: function(evt, handler) { window.addEventListener('neu:' + evt, handler); } }
+  };
+  window.Neutralino = window.Neutralino || Native;
+})();`
+        },
+        {
           id: 'neutralino-bridge-ts',
           name: 'neutralinoBridge.ts',
           type: 'file',
