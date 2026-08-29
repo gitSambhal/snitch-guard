@@ -11,7 +11,7 @@ set -e
 if [ ! -f "bin/snitchguard-daemon" ]; then
     echo "==> Daemon binary missing. Compiling Go daemon..."
     mkdir -p bin
-    cd daemon && go build -o ../bin/snitchguard-daemon . && cd ..
+    cd daemon && (rm -f go.sum && go mod tidy) && go build -o ../bin/snitchguard-daemon . && cd ..
     chmod +x bin/snitchguard-daemon
 fi
 

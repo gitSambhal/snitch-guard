@@ -289,7 +289,7 @@ require golang.org/x/net v0.24.0 // indirect`
           path: '/daemon/go.sum',
           language: 'go',
           content: `github.com/gorilla/websocket v1.5.1 h1:gmztn0JnHVt9JZquRuzLw3g4wouNVzKL15iLr/zn/QY=
-github.com/gorilla/websocket v1.5.1/go.mod h1:x8No5VoVbmpZmhzPa6lQX6i8Dtub52pdPu4BV4VBPm0=`
+github.com/gorilla/websocket v1.5.1/go.mod h1:x3kM2JMyaluk02fnUJpQuwD2dCS5NDG2ZHL0uE0tcaY=`
         }
       ]
     },

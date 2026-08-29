@@ -25,6 +25,7 @@ npm run build
 echo "[3/4] Compiling elevated Go Firewall Daemon (SNI + Socket Resolver)..."
 mkdir -p bin
 cd daemon
+rm -f go.sum && go mod tidy
 go build -v -ldflags="-s -w" -o ../bin/snitchguard-daemon .
 cd ..
 chmod +x bin/snitchguard-daemon
