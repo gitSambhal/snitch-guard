@@ -154,8 +154,10 @@ export default function App() {
         stats={stats}
         isFirewallActive={isFirewallActive}
         onToggleFirewall={() => {
-          setIsFirewallActive(!isFirewallActive);
-          showToast(`Firewall ${!isFirewallActive ? 'ENABLED' : 'DISABLED'}`, !isFirewallActive ? 'success' : 'error');
+          const nextState = !isFirewallActive;
+          setIsFirewallActive(nextState);
+          daemon.setFirewallEnabled(nextState);
+          showToast(`Firewall ${nextState ? 'ENABLED' : 'DISABLED'}`, nextState ? 'success' : 'error');
         }}
         onOpenChangelog={() => setIsChangelogOpen(true)}
         onQuickSimulate={handleQuickSimulateAlert}

@@ -71,26 +71,29 @@ class SnitchGuardDaemonManager {
   private ipcLogs: IpcPacket[] = [];
   private activePendingAlert: ConnectionEvent | null = null;
   private subscribers: Array<() => void> = [];
+  private isLiveStreamActive: boolean = true;
+  private isFirewallEnabled: boolean = true;
+  private dataSourceMode: 'real_daemon' | 'sandbox' = 'real_daemon';
   
   // Real WebSocket connection variables
   private ws: WebSocket | null = null;
   private daemonUrl: string = 'ws://127.0.0.1:9095/ws';
   private connectionState: DaemonConnectionState = {
-    status: 'simulation',
+    status: 'disconnected',
     daemonUrl: 'ws://127.0.0.1:9095/ws'
   };
 
   private stats: DaemonMetrics = {
     activeFlows: 0,
     totalRules: DEFAULT_RULES.length,
-    blockedCount: 198,
-    allowedCount: 2421,
-    promptCount: 14,
-    bytesTotal: 48920400,
-    uptimeSeconds: 1420,
+    blockedCount: 0,
+    allowedCount: 0,
+    promptCount: 0,
+    bytesTotal: 0,
+    uptimeSeconds: 0,
     daemonVersion: 'v1.0.0',
-    platformDriver: 'eBPF / NetworkExtension / WFP Hybrid Engine',
-    connectedClients: 1,
+    platformDriver: 'eBPF / NetworkExtension / WFP Real Kernel Engine',
+    connectedClients: 0,
     isLiveDaemonConnected: false,
     daemonUrl: 'ws://127.0.0.1:9095/ws'
   };
@@ -98,20 +101,120 @@ class SnitchGuardDaemonManager {
   constructor() {
     this.loadPersistedRules();
     this.loadPersistedSettings();
-    this.seedInitialTraffic();
 
-    // Start background ticker
+    if (this.dataSourceMode === 'sandbox') {
+      this.seedInitialTraffic();
+      this.stats.allowedCount = 2421;
+      this.stats.blockedCount = 198;
+      this.stats.promptCount = 14;
+      this.stats.bytesTotal = 48920400;
+      this.stats.uptimeSeconds = 1420;
+    }
+
+    // Start background ticker for uptime & active flows count
     setInterval(() => {
       this.stats.uptimeSeconds += 1;
       this.stats.activeFlows = this.traffic.filter(t => t.state === 'pending' || t.state === 'allowed').length;
       this.stats.totalRules = this.rules.length;
       this.stats.isLiveDaemonConnected = this.connectionState.status === 'connected';
       this.stats.daemonUrl = this.daemonUrl;
+
+      // Update bandwidth counters for active allowed flows ONLY in sandbox mode or if real daemon sends stats
+      if (this.dataSourceMode === 'sandbox' && this.isLiveStreamActive && this.isFirewallEnabled) {
+        this.traffic.forEach(t => {
+          if (t.state === 'allowed') {
+            const addedTx = Math.floor(100 + Math.random() * 800);
+            const addedRx = Math.floor(1000 + Math.random() * 8000);
+            t.bytesSent = (t.bytesSent || 0) + addedTx;
+            t.bytesRecv = (t.bytesRecv || 0) + addedRx;
+            this.stats.bytesTotal += addedTx + addedRx;
+          }
+        });
+      }
+
       this.notify();
     }, 1000);
 
+    // Periodic live traffic stream generator (ONLY in sandbox mode when disconnected)
+    setInterval(() => {
+      if (this.dataSourceMode === 'sandbox' && this.isLiveStreamActive && this.isFirewallEnabled && !this.stats.isLiveDaemonConnected) {
+        this.generateRandomLivePacket();
+      }
+    }, 2500);
+
     // Try auto-connecting to real Go daemon
     this.connectToLiveDaemon(this.daemonUrl, false);
+  }
+
+  public getDataSourceMode(): 'real_daemon' | 'sandbox' {
+    return this.dataSourceMode;
+  }
+
+  public setDataSourceMode(mode: 'real_daemon' | 'sandbox') {
+    this.dataSourceMode = mode;
+    try {
+      localStorage.setItem('snitchguard_data_mode', mode);
+    } catch {
+      // ignore
+    }
+    if (mode === 'real_daemon') {
+      // Clear fake traffic
+      this.traffic = [];
+      this.stats.blockedCount = 0;
+      this.stats.allowedCount = 0;
+      this.stats.promptCount = 0;
+      this.stats.bytesTotal = 0;
+      this.connectToLiveDaemon(this.daemonUrl, true);
+    } else {
+      if (this.traffic.length === 0) {
+        this.seedInitialTraffic();
+      }
+    }
+    this.notify();
+  }
+
+  public setFirewallEnabled(enabled: boolean) {
+    this.isFirewallEnabled = enabled;
+    this.notify();
+  }
+
+  public isFirewallActive(): boolean {
+    return this.isFirewallEnabled;
+  }
+
+  public toggleLiveStream(): boolean {
+    this.isLiveStreamActive = !this.isLiveStreamActive;
+    this.notify();
+    return this.isLiveStreamActive;
+  }
+
+  public getIsLiveStreamActive(): boolean {
+    return this.isLiveStreamActive;
+  }
+
+  private generateRandomLivePacket() {
+    const pool = [
+      { proc: 'chrome', path: '/Applications/Google Chrome.app', domain: 'api.github.com', ip: '140.82.121.4', port: 443, proto: 'tls' as const },
+      { proc: 'spotify', path: '/usr/bin/spotify', domain: 'audio-ak.spotify.com', ip: '35.186.224.25', port: 443, proto: 'tls' as const },
+      { proc: 'code', path: '/usr/share/code/code', domain: 'vortex.data.microsoft.com', ip: '20.54.89.10', port: 443, proto: 'tls' as const },
+      { proc: 'slack', path: '/usr/bin/slack', domain: 'app.slack.com', ip: '54.192.89.100', port: 443, proto: 'tls' as const },
+      { proc: 'git', path: '/usr/bin/git', domain: 'github.com', ip: '140.82.121.3', port: 22, proto: 'tcp' as const },
+      { proc: 'curl', path: '/usr/bin/curl', domain: 'httpbin.org', ip: '54.233.10.12', port: 80, proto: 'http' as const },
+      { proc: 'systemd-resolved', path: '/lib/systemd/systemd-resolved', domain: 'dns.google', ip: '8.8.8.8', port: 53, proto: 'udp' as const },
+      { proc: 'DiagnosticsHub', path: '/opt/diagnostics/hub', domain: 'telemetry.analytics-hub.io', ip: '198.51.100.99', port: 443, proto: 'tls' as const },
+      { proc: 'dockerd', path: '/usr/bin/dockerd', domain: 'registry-1.docker.io', ip: '54.236.113.205', port: 443, proto: 'tls' as const },
+      { proc: 'discord', path: '/usr/bin/discord', domain: 'gateway.discord.gg', ip: '162.159.135.232', port: 443, proto: 'tls' as const }
+    ];
+
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    this.simulateConnection({
+      processName: pick.proc,
+      processPath: pick.path,
+      domain: pick.domain,
+      remoteIP: pick.ip,
+      port: pick.port,
+      protocol: pick.proto
+    });
   }
 
   private loadPersistedRules() {
@@ -139,6 +242,10 @@ class SnitchGuardDaemonManager {
       if (savedUrl) {
         this.daemonUrl = savedUrl;
         this.connectionState.daemonUrl = savedUrl;
+      }
+      const savedMode = localStorage.getItem('snitchguard_data_mode');
+      if (savedMode === 'sandbox' || savedMode === 'real_daemon') {
+        this.dataSourceMode = savedMode;
       }
     } catch {
       // ignore
@@ -203,9 +310,9 @@ class SnitchGuardDaemonManager {
       ws.onerror = () => {
         if (this.connectionState.status === 'connecting') {
           this.connectionState = {
-            status: 'simulation',
+            status: this.dataSourceMode === 'real_daemon' ? 'disconnected' : 'simulation',
             daemonUrl: url,
-            error: 'Could not connect to Go daemon at ' + url + '. Operating in Sandbox Simulation Mode.'
+            error: 'Could not connect to Go daemon at ' + url + '. Run snitchguard-daemon on host machine.'
           };
           this.stats.isLiveDaemonConnected = false;
           this.notify();
@@ -217,7 +324,7 @@ class SnitchGuardDaemonManager {
           this.logIpc('daemon_to_ui', 'DAEMON_DISCONNECTED', { url });
         }
         this.connectionState = {
-          status: 'simulation',
+          status: this.dataSourceMode === 'real_daemon' ? 'disconnected' : 'simulation',
           daemonUrl: url
         };
         this.stats.isLiveDaemonConnected = false;
@@ -226,7 +333,7 @@ class SnitchGuardDaemonManager {
       };
     } catch (err: any) {
       this.connectionState = {
-        status: 'simulation',
+        status: this.dataSourceMode === 'real_daemon' ? 'disconnected' : 'simulation',
         daemonUrl: url,
         error: err?.message || 'WebSocket connection error'
       };
@@ -245,7 +352,7 @@ class SnitchGuardDaemonManager {
       this.ws = null;
     }
     this.connectionState = {
-      status: 'simulation',
+      status: this.dataSourceMode === 'real_daemon' ? 'disconnected' : 'simulation',
       daemonUrl: this.daemonUrl
     };
     this.stats.isLiveDaemonConnected = false;

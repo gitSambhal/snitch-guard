@@ -5,8 +5,9 @@
  */
 
 import React, { useState } from 'react';
-import { Activity, Search, Trash2, ShieldOff, CheckCircle2, ArrowUpRight, ArrowDownLeft, Ban } from 'lucide-react';
+import { Activity, Search, Trash2, ShieldOff, CheckCircle2, ArrowUpRight, ArrowDownLeft, Ban, Play, Pause, Zap, Radio, Server, AlertCircle } from 'lucide-react';
 import { ConnectionEvent, FirewallAction } from '../types/firewall';
+import { daemon } from '../services/mockDaemon';
 
 interface TrafficMonitorProps {
   traffic: ConnectionEvent[];
@@ -24,6 +25,29 @@ export const TrafficMonitor: React.FC<TrafficMonitorProps> = ({
   const [filterText, setFilterText] = useState('');
   const [protocolFilter, setProtocolFilter] = useState<string>('all');
   const [stateFilter, setStateFilter] = useState<string>('all');
+  const [isStreaming, setIsStreaming] = useState<boolean>(daemon.getIsLiveStreamActive());
+
+  const dataMode = daemon.getDataSourceMode();
+  const connState = daemon.getConnectionState();
+
+  const handleToggleStreaming = () => {
+    const newState = daemon.toggleLiveStream();
+    setIsStreaming(newState);
+  };
+
+  const handleBurstTraffic = () => {
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        daemon.simulateConnection({
+          processName: ['chrome', 'spotify', 'code', 'git', 'slack', 'curl'][Math.floor(Math.random() * 6)],
+          domain: ['api.github.com', 'audio.spotify.com', 'telemetry.vs.com', 'slack.com', 'httpbin.org'][Math.floor(Math.random() * 5)],
+          remoteIP: `198.51.100.${Math.floor(10 + Math.random() * 200)}`,
+          port: 443,
+          protocol: 'tls'
+        });
+      }, i * 300);
+    }
+  };
 
   const filteredTraffic = traffic.filter((item) => {
     const matchesText =
@@ -62,11 +86,85 @@ export const TrafficMonitor: React.FC<TrafficMonitorProps> = ({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Real Data Mode Notice */}
+      {dataMode === 'real_daemon' && !connState.status.includes('connected') && (
+        <div className="bg-[#141416] border border-amber-500/30 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+              <Server className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-bold uppercase text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                  Strict Real Data Mode Active
+                </span>
+                <span className="text-xs text-gray-400 font-mono">
+                  Awaiting {connState.daemonUrl}
+                </span>
+              </div>
+              <p className="text-xs text-gray-300 mt-1">
+                Zero synthetic/fake packets are generated in Real Data Mode. All captured socket flows, TLS SNI headers, and process metadata stream directly from the elevated Go firewall daemon.
+              </p>
+              <div className="flex items-center gap-2 mt-2 font-mono text-[11px] text-gray-400">
+                <span className="text-emerald-400 font-semibold">Run Local Daemon:</span>
+                <code className="bg-[#1c1c1f] px-2 py-0.5 rounded border border-[#27272a] text-slate-200">
+                  chmod +x scripts/run-native.sh && ./scripts/run-native.sh
+                </code>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => daemon.connectToLiveDaemon(connState.daemonUrl, true)}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition shadow-md cursor-pointer flex items-center gap-1.5"
+            >
+              <Server className="w-3.5 h-3.5" />
+              <span>Retry Connect</span>
+            </button>
+            <button
+              onClick={() => daemon.setDataSourceMode('sandbox')}
+              className="bg-[#1c1c1f] hover:bg-[#27272a] text-gray-300 border border-[#27272a] px-3 py-1.5 rounded-lg text-xs transition cursor-pointer"
+            >
+              Enable Sandbox Demo
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Section Header & Rates */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Active Network Traffic</h3>
-          <p className="text-[11px] text-gray-500">Real-time socket flows inspected via kernel hooks</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Active Network Traffic</h3>
+            <p className="text-[11px] text-gray-500">Real-time socket flows inspected via kernel hooks</p>
+          </div>
+
+          <div className="flex items-center gap-2 pl-3 border-l border-[#27272a]">
+            <button
+              onClick={handleToggleStreaming}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition border cursor-pointer ${
+                isStreaming
+                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+                  : 'bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${isStreaming ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+              <span>{isStreaming ? 'LIVE CAPTURE ACTIVE' : 'STREAM PAUSED'}</span>
+              {isStreaming ? <Pause className="w-3 h-3 ml-1" /> : <Play className="w-3 h-3 ml-1" />}
+            </button>
+
+            {dataMode === 'sandbox' && (
+              <button
+                onClick={handleBurstTraffic}
+                className="flex items-center gap-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-1 rounded-lg text-[11px] font-mono transition cursor-pointer"
+                title="Inject 3 instant live socket flows"
+              >
+                <Zap className="w-3 h-3" />
+                <span>+ Traffic Burst</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

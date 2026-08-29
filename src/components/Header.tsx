@@ -5,8 +5,9 @@
  */
 
 import React from 'react';
-import { Shield, Activity, ListFilter, PlayCircle, Cpu, FileCode, Terminal, Sparkles, ShieldAlert, ShieldCheck, Radio, Server } from 'lucide-react';
+import { Shield, Activity, ListFilter, PlayCircle, Cpu, FileCode, Terminal, Sparkles, ShieldAlert, ShieldCheck, Radio, Server, Database } from 'lucide-react';
 import { DaemonMetrics } from '../types/firewall';
+import { daemon } from '../services/mockDaemon';
 
 interface HeaderProps {
   activeTab: string;
@@ -39,6 +40,12 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   const isLive = stats.isLiveDaemonConnected;
+  const dataMode = daemon.getDataSourceMode();
+
+  const handleToggleDataMode = () => {
+    const newMode = dataMode === 'real_daemon' ? 'sandbox' : 'real_daemon';
+    daemon.setDataSourceMode(newMode);
+  };
 
   return (
     <header className="bg-[#0a0a0b]/90 backdrop-blur-md border-b border-[#27272a] sticky top-0 z-40">
@@ -55,9 +62,22 @@ export const Header: React.FC<HeaderProps> = ({
             title="Click to configure Real Go Daemon connection"
           >
             <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-            <span className="font-bold">{isLive ? 'LIVE HOST DAEMON' : 'SIMULATION MODE'}</span>
+            <span className="font-bold">{isLive ? 'LIVE KERNEL DAEMON' : 'AWAITING DAEMON'}</span>
             <span className="text-gray-600">|</span>
             <span className="text-gray-400">{stats.daemonUrl || 'ws://127.0.0.1:9095'}</span>
+          </button>
+
+          <button
+            onClick={handleToggleDataMode}
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded border font-mono text-[11px] transition cursor-pointer ${
+              dataMode === 'real_daemon'
+                ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'
+                : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+            }`}
+            title="Click to switch between Strict Real Data and Sandbox Demo Mode"
+          >
+            <Database className="w-3 h-3" />
+            <span className="font-semibold">{dataMode === 'real_daemon' ? 'MODE: STRICT REAL DATA' : 'MODE: SANDBOX DEMO'}</span>
           </button>
         </div>
 
@@ -67,16 +87,18 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-1.5 text-gray-400 hover:text-blue-400 px-2 py-0.5 rounded transition text-[11px] font-mono hover:bg-[#1c1c1f] cursor-pointer"
           >
             <Server className="w-3 h-3" />
-            <span>Connect Live Daemon</span>
+            <span>Connect Daemon</span>
           </button>
 
-          <button
-            onClick={onQuickSimulate}
-            className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-md text-[11px] font-medium transition cursor-pointer"
-          >
-            <Sparkles className="w-3 h-3" />
-            <span>Inject Test Alert</span>
-          </button>
+          {dataMode === 'sandbox' && (
+            <button
+              onClick={onQuickSimulate}
+              className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-md text-[11px] font-medium transition cursor-pointer"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>Inject Test Alert</span>
+            </button>
+          )}
 
           <button
             onClick={onOpenChangelog}
