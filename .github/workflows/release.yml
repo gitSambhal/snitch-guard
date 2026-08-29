@@ -74,116 +74,36 @@ jobs:
           chmod +x bin/daemons/* || true
           ls -la bin/daemons/
 
-      - name: Build Neutralino Desktop Binaries
+      - name: Build Neutralino Desktop Single-File Binaries
         run: |
-          mkdir -p dist/js dist/icons
+          mkdir -p dist/js dist/icons dist/bin
           cp public/js/neutralino.js dist/js/neutralino.js 2>/dev/null || true
           cp public/icons/appIcon.png dist/icons/appIcon.png 2>/dev/null || true
+          cp bin/daemons/* dist/bin/ 2>/dev/null || true
           echo "==> Running neu update to download official Neutralino engine binaries..."
           neu update
-          echo "==> Running neu build to bundle resources..."
-          neu build --release
+          echo "==> Running neu build with --embed-resources for single-file portable binaries..."
+          neu build --release --embed-resources
           ls -la bin/
 
-      - name: Package Multi-Platform Release Archives
+      - name: Package Single Portable Binaries
         run: |
           mkdir -p release-artifacts
           
-          # Linux x64
-          mkdir -p pkg-linux-x64/bin
-          cp bin/snitchguard/snitchguard-linux_x64 pkg-linux-x64/ 2>/dev/null || cp bin/snitchguard-linux_x64 pkg-linux-x64/ 2>/dev/null || true
-          cp bin/snitchguard/resources.neu pkg-linux-x64/ 2>/dev/null || cp bin/resources.neu pkg-linux-x64/ 2>/dev/null || true
-          cp bin/daemons/snitchguard-daemon-linux-amd64 pkg-linux-x64/bin/snitchguard-daemon
-          cp firewall_rules.json pkg-linux-x64/ 2>/dev/null || echo "[]" > pkg-linux-x64/firewall_rules.json
-          cat << 'EOF' > pkg-linux-x64/run.sh
-          #!/usr/bin/env bash
-          DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-          echo "==> Starting SnitchGuard Firewall Daemon..."
-          sudo "$DIR/bin/snitchguard-daemon" --ws-port=9095 --proxy-port=9096 --rules="$DIR/firewall_rules.json" &
-          DAEMON_PID=$!
-          sleep 0.3
-          "$DIR/snitchguard-linux_x64"
-          kill $DAEMON_PID 2>/dev/null || true
-          EOF
-          chmod +x pkg-linux-x64/run.sh pkg-linux-x64/bin/snitchguard-daemon pkg-linux-x64/snitchguard-linux_x64 2>/dev/null || true
-          tar -czvf release-artifacts/snitchguard-linux-x64.tar.gz -C pkg-linux-x64 .
+          # Copy self-contained single binaries (embedded with UI & resources)
+          cp bin/snitchguard/snitchguard-linux_x64 release-artifacts/snitchguard-linux-x64 2>/dev/null || cp bin/snitchguard-linux_x64 release-artifacts/snitchguard-linux-x64 2>/dev/null || true
+          cp bin/snitchguard/snitchguard-linux_arm64 release-artifacts/snitchguard-linux-arm64 2>/dev/null || cp bin/snitchguard-linux_arm64 release-artifacts/snitchguard-linux-arm64 2>/dev/null || true
+          cp bin/snitchguard/snitchguard-mac_x64 release-artifacts/snitchguard-mac-x64 2>/dev/null || cp bin/snitchguard-mac_x64 release-artifacts/snitchguard-mac-x64 2>/dev/null || true
+          cp bin/snitchguard/snitchguard-mac_arm64 release-artifacts/snitchguard-mac-arm64 2>/dev/null || cp bin/snitchguard-mac_arm64 release-artifacts/snitchguard-mac-arm64 2>/dev/null || true
+          cp bin/snitchguard/snitchguard-win_x64.exe release-artifacts/snitchguard-windows-x64.exe 2>/dev/null || cp bin/snitchguard-win_x64.exe release-artifacts/snitchguard-windows-x64.exe 2>/dev/null || true
 
-          # Linux ARM64
-          mkdir -p pkg-linux-arm64/bin
-          cp bin/snitchguard/snitchguard-linux_arm64 pkg-linux-arm64/ 2>/dev/null || cp bin/snitchguard-linux_arm64 pkg-linux-arm64/ 2>/dev/null || true
-          cp bin/snitchguard/resources.neu pkg-linux-arm64/ 2>/dev/null || cp bin/resources.neu pkg-linux-arm64/ 2>/dev/null || true
-          cp bin/daemons/snitchguard-daemon-linux-arm64 pkg-linux-arm64/bin/snitchguard-daemon
-          cp firewall_rules.json pkg-linux-arm64/ 2>/dev/null || echo "[]" > pkg-linux-arm64/firewall_rules.json
-          cat << 'EOF' > pkg-linux-arm64/run.sh
-          #!/usr/bin/env bash
-          DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-          echo "==> Starting SnitchGuard Firewall Daemon..."
-          sudo "$DIR/bin/snitchguard-daemon" --ws-port=9095 --proxy-port=9096 --rules="$DIR/firewall_rules.json" &
-          DAEMON_PID=$!
-          sleep 0.3
-          "$DIR/snitchguard-linux_arm64"
-          kill $DAEMON_PID 2>/dev/null || true
-          EOF
-          chmod +x pkg-linux-arm64/run.sh pkg-linux-arm64/bin/snitchguard-daemon pkg-linux-arm64/snitchguard-linux_arm64 2>/dev/null || true
-          tar -czvf release-artifacts/snitchguard-linux-arm64.tar.gz -C pkg-linux-arm64 .
-
-          # macOS Intel (x64)
-          mkdir -p pkg-mac-x64/bin
-          cp bin/snitchguard/snitchguard-mac_x64 pkg-mac-x64/ 2>/dev/null || cp bin/snitchguard-mac_x64 pkg-mac-x64/ 2>/dev/null || true
-          cp bin/snitchguard/resources.neu pkg-mac-x64/ 2>/dev/null || cp bin/resources.neu pkg-mac-x64/ 2>/dev/null || true
-          cp bin/daemons/snitchguard-daemon-darwin-amd64 pkg-mac-x64/bin/snitchguard-daemon
-          cp firewall_rules.json pkg-mac-x64/ 2>/dev/null || echo "[]" > pkg-mac-x64/firewall_rules.json
-          cat << 'EOF' > pkg-mac-x64/run.sh
-          #!/usr/bin/env bash
-          DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-          echo "==> Starting SnitchGuard Firewall Daemon..."
-          sudo "$DIR/bin/snitchguard-daemon" --ws-port=9095 --proxy-port=9096 --rules="$DIR/firewall_rules.json" &
-          DAEMON_PID=$!
-          sleep 0.3
-          "$DIR/snitchguard-mac_x64"
-          kill $DAEMON_PID 2>/dev/null || true
-          EOF
-          chmod +x pkg-mac-x64/run.sh pkg-mac-x64/bin/snitchguard-daemon pkg-mac-x64/snitchguard-mac_x64 2>/dev/null || true
-          tar -czvf release-artifacts/snitchguard-mac-x64.tar.gz -C pkg-mac-x64 .
-
-          # macOS Apple Silicon (ARM64)
-          mkdir -p pkg-mac-arm64/bin
-          cp bin/snitchguard/snitchguard-mac_arm64 pkg-mac-arm64/ 2>/dev/null || cp bin/snitchguard-mac_arm64 pkg-mac-arm64/ 2>/dev/null || true
-          cp bin/snitchguard/resources.neu pkg-mac-arm64/ 2>/dev/null || cp bin/resources.neu pkg-mac-arm64/ 2>/dev/null || true
-          cp bin/daemons/snitchguard-daemon-darwin-arm64 pkg-mac-arm64/bin/snitchguard-daemon
-          cp firewall_rules.json pkg-mac-arm64/ 2>/dev/null || echo "[]" > pkg-mac-arm64/firewall_rules.json
-          cat << 'EOF' > pkg-mac-arm64/run.sh
-          #!/usr/bin/env bash
-          DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-          echo "==> Starting SnitchGuard Firewall Daemon..."
-          sudo "$DIR/bin/snitchguard-daemon" --ws-port=9095 --proxy-port=9096 --rules="$DIR/firewall_rules.json" &
-          DAEMON_PID=$!
-          sleep 0.3
-          "$DIR/snitchguard-mac_arm64"
-          kill $DAEMON_PID 2>/dev/null || true
-          EOF
-          chmod +x pkg-mac-arm64/run.sh pkg-mac-arm64/bin/snitchguard-daemon pkg-mac-arm64/snitchguard-mac_arm64 2>/dev/null || true
-          tar -czvf release-artifacts/snitchguard-mac-arm64.tar.gz -C pkg-mac-arm64 .
-
-          # Windows x64
-          mkdir -p pkg-win-x64/bin
-          cp bin/snitchguard/snitchguard-win_x64.exe pkg-win-x64/ 2>/dev/null || cp bin/snitchguard-win_x64.exe pkg-win-x64/ 2>/dev/null || true
-          cp bin/snitchguard/resources.neu pkg-win-x64/ 2>/dev/null || cp bin/resources.neu pkg-win-x64/ 2>/dev/null || true
-          cp bin/daemons/snitchguard-daemon-windows-amd64.exe pkg-win-x64/bin/snitchguard-daemon.exe
-          cp firewall_rules.json pkg-win-x64/ 2>/dev/null || echo "[]" > pkg-win-x64/firewall_rules.json
-          cat << 'EOF' > pkg-win-x64/run.bat
-          @echo off
-          echo Starting SnitchGuard Firewall Daemon...
-          start "" "%~dp0bin\snitchguard-daemon.exe" --ws-port=9095 --proxy-port=9096 --rules="%~dp0firewall_rules.json"
-          timeout /t 1 /nobreak >nul
-          start "" "%~dp0snitchguard-win_x64.exe"
-          EOF
-          zip -r release-artifacts/snitchguard-windows-x64.zip pkg-win-x64/
+          chmod +x release-artifacts/snitchguard-linux-* release-artifacts/snitchguard-mac-* 2>/dev/null || true
 
           # Compute SHA-256 Checksums
           cd release-artifacts
           sha256sum * > SHA256SUMS.txt
           cd ..
+          echo "==> Release Single Artifacts:"
           ls -la release-artifacts/
 
       - name: Determine Release Tag & Name
@@ -213,24 +133,24 @@ jobs:
 
             Automated cross-platform production release containing the unified Neutralinojs desktop client and the elevated Go firewall daemon.
 
-            #### 📦 Download Packages
-            - **Linux x86_64:** `snitchguard-linux-x64.tar.gz`
-            - **Linux ARM64:** `snitchguard-linux-arm64.tar.gz`
-            - **macOS Intel (x86_64):** `snitchguard-mac-x64.tar.gz`
-            - **macOS Apple Silicon (M1/M2/M3/M4 ARM64):** `snitchguard-mac-arm64.tar.gz`
-            - **Windows x86_64:** `snitchguard-windows-x64.zip`
+            #### 📦 Single Portable Executables
+            - **Linux x86_64:** `snitchguard-linux-x64` (Single portable binary)
+            - **Linux ARM64:** `snitchguard-linux-arm64` (Single portable binary)
+            - **macOS Intel (x86_64):** `snitchguard-mac-x64` (Single portable binary)
+            - **macOS Apple Silicon (ARM64):** `snitchguard-mac-arm64` (Single portable binary)
+            - **Windows x86_64:** `snitchguard-windows-x64.exe` (Single portable executable)
             - **Checksums:** `SHA256SUMS.txt`
 
             #### 🚀 Quick Start
-            1. Extract the downloaded package for your OS.
-            2. Run `./run.sh` (or `run.bat` on Windows).
-            3. The application will start the elevated firewall daemon and launch the live traffic inspection dashboard.
+            Each executable binary is completely self-contained with embedded web UI, client resources, and native firewall logic.
+            - **Linux / macOS:** `chmod +x snitchguard-<os>-<arch> && ./snitchguard-<os>-<arch>`
+            - **Windows:** Double click `snitchguard-windows-x64.exe`
           files: |
-            release-artifacts/snitchguard-linux-x64.tar.gz
-            release-artifacts/snitchguard-linux-arm64.tar.gz
-            release-artifacts/snitchguard-mac-x64.tar.gz
-            release-artifacts/snitchguard-mac-arm64.tar.gz
-            release-artifacts/snitchguard-windows-x64.zip
+            release-artifacts/snitchguard-linux-x64
+            release-artifacts/snitchguard-linux-arm64
+            release-artifacts/snitchguard-mac-x64
+            release-artifacts/snitchguard-mac-arm64
+            release-artifacts/snitchguard-windows-x64.exe
             release-artifacts/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

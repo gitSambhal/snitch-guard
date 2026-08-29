@@ -380,8 +380,9 @@ npm run build
 mkdir -p bin
 cd daemon && go build -ldflags="-s -w" -o ../bin/snitchguard-daemon . && cd ..
 chmod +x bin/snitchguard-daemon
-neu build --release
-echo "==> Native package generated in bin/"`
+mkdir -p dist/bin && cp bin/snitchguard-daemon dist/bin/ 2>/dev/null || true
+neu build --release --embed-resources
+echo "==> Single portable native binary generated in bin/"`
         },
         {
           id: 'run-native-sh',

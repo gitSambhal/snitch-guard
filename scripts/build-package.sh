@@ -30,20 +30,21 @@ cd ..
 chmod +x bin/snitchguard-daemon
 echo "  -> Created: bin/snitchguard-daemon"
 
-# 4. Package with Neutralino CLI
-echo "[4/4] Packaging unified desktop binaries with Neutralinojs..."
-mkdir -p dist/js dist/icons
+# 4. Package with Neutralino CLI (Single-file Portable Binaries)
+echo "[4/4] Packaging unified single portable desktop binaries with Neutralinojs..."
+mkdir -p dist/js dist/icons dist/bin
 cp public/js/neutralino.js dist/js/neutralino.js 2>/dev/null || true
 cp public/icons/appIcon.png dist/icons/appIcon.png 2>/dev/null || true
+cp bin/snitchguard-daemon dist/bin/ 2>/dev/null || true
 
 if command -v neu >/dev/null 2>&1; then
     neu update || true
-    neu build --release
-    echo "  -> Neutralino build generated in bin/"
+    neu build --release --embed-resources
+    echo "  -> Neutralino single portable binary generated in bin/"
 else
     echo "  -> neu CLI not found globally. Trying npx @neutralinojs/neu..."
     npx @neutralinojs/neu update || true
-    npx @neutralinojs/neu build --release || true
+    npx @neutralinojs/neu build --release --embed-resources || true
 fi
 
 # 5. Create Standalone Run Wrapper
